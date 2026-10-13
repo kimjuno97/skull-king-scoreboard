@@ -25,6 +25,7 @@
     select { color: var(--ink); border: 0; background: transparent; padding: 4px 2px; font-weight: 700; font-size: 13px; }
     .quiet-button { height: 36px; border: 1px solid #d5dcd1; border-radius: 7px; background: transparent; color: #536653; padding: 0 12px; font-size: 11px; font-weight: 600; }
     .quiet-button:hover:not(:disabled) { background: #e9ece1; }
+    .round-nav { display: none; }
     .table-scroll { flex: 1; min-height: 0; width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); scrollbar-width: thin; scrollbar-color: #b5c4ab #eef1e8; overscroll-behavior-x: contain; }
     table { width: 100%; height: 100%; min-width: 1110px; table-layout: fixed; border-spacing: 0; font-variant-numeric: tabular-nums; }
     caption, .sr-only { position: absolute; clip-path: inset(50%); height: 1px; width: 1px; overflow: hidden; white-space: nowrap; }
@@ -94,23 +95,58 @@
     .dialog-actions button { height: 41px; padding: 0 18px; font-size: 13px; border: 0; border-radius: 7px; font-weight: 600; }
     #cancel-dialog { background: #ecf0e5; color: #627456; }
     #confirm-dialog { background: var(--green); color: #fff; }
-    @media (max-width: 680px) {
-      :root { --name-width: 112px; --total-width: 86px; }
+    @media (max-width: 680px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+      :root { --name-width: 36%; --total-width: 28%; }
       main { padding: 8px; gap: 8px; }
+      main.has-selection { padding-bottom: var(--controls-space, 158px); }
       .toolbar { min-height: 44px; gap: 7px; }
       h1 { font-size: 21px; letter-spacing: -1.1px; }
       .controls { gap: 5px; }
       .count-control { height: 32px; padding: 0 6px; }
       .count-control label { display: none; }
       .quiet-button { height: 32px; font-size: 10px; padding: 0 8px; }
-      table { min-width: 1018px; }
-      .player-cell { padding: 7px 5px; }
-      .player-id { font-size: 9px; margin-bottom: 4px; }
-      .name-input { font-size: 16px; }
-      .score-input { font-size: 21px; }
-      .total { font-size: 25px; }
+      .round-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-shrink: 0; }
+      .round-nav > button { width: 40px; height: 40px; border: 1px solid #d5dfcd; border-radius: 9px; background: #fffef9; color: #3d6349; font-size: 24px; }
+      .round-picker { display: flex; align-items: center; justify-content: center; gap: 13px; }
+      #round-select { font-size: 16px; padding: 7px 4px; }
+      #round-progress { font-size: 10px; color: #829478; white-space: nowrap; }
+      table { min-width: 0; }
+      thead th { height: 40px; padding: 5px 4px; }
+      .round-number { display: inline; font-size: 14px; }
+      .round-label { display: inline; margin: 0 0 0 3px; font-size: 11px; }
+      .player-cell { padding: 2px 5px; }
+      .player-id { display: none; }
+      .name-input { font-size: 18px; padding: 6px 2px; }
+      tbody td { padding: 2px 4px; }
+      .score-input { height: 38px; font-size: 23px; }
+      .total-cell { padding: 2px 4px; }
+      .total { font-size: 23px; }
       .total.compact { font-size: 13px; }
-      .rank { font-size: 9px; }
+      .rank { font-size: 9px; margin-top: 2px; }
+      .rank:empty { display: none; }
+      .table-scroll.editing::after { display: none; }
+      .score-controls { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: calc(100vw - 16px); padding: 5px 12px 4px; border-radius: 14px; }
+      .score-controls-heading { min-height: 32px; }
+      #close-controls { width: 32px; height: 32px; }
+      .stepper { grid-template-columns: 48px 1fr 48px; margin: 2px 0 4px; }
+      .step-button { width: 48px; height: 48px; font-size: 19px; }
+      .selected-value { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+      #selected-score { font-size: 28px; }
+      #selected-score-caption { margin: 0; }
+      .score-controls-actions { padding-top: 1px; }
+      .score-controls-actions button { min-height: 30px; }
+    }
+    @media (max-width: 960px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+      main { gap: 6px; }
+      main.has-selection { padding-right: 304px; padding-bottom: 8px; }
+      .toolbar { min-height: 36px; }
+      .round-nav { min-height: 36px; }
+      .round-nav > button { height: 36px; }
+      .score-controls { width: 280px; }
+      .name-input { font-size: 16px; }
+      .score-input { height: 34px; }
+      .total { font-size: 19px; }
+      .rank { font-size: 8px; margin-top: 0; }
     }
   </style>
 </head>
@@ -119,11 +155,16 @@
     <header class="toolbar">
       <h1>스컬킹 점수판</h1>
       <div class="controls">
-        <div class="count-control"><label for="player-count">인원</label><select id="player-count" aria-label="참가 인원" autocomplete="off"><option value="2">2명</option><option value="3">3명</option><option value="4" selected>4명</option><option value="5">5명</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div>
+        <div class="count-control"><label for="player-count">인원</label><select id="player-count" aria-label="참가 인원" autocomplete="off"><option value="2">2명</option><option value="3">3명</option><option value="4">4명</option><option value="5">5명</option><option value="6" selected>6명</option><option value="7">7명</option><option value="8">8명</option></select></div>
         <button id="new-game" class="quiet-button" disabled>점수 비우기</button>
       </div>
     </header>
-    <div class="table-scroll" tabindex="0" role="region" aria-label="스컬킹 점수표. 가로는 라운드, 세로는 참가자입니다. 좁은 화면에서는 좌우로 스크롤하세요.">
+    <nav class="round-nav" aria-label="라운드 선택">
+      <button id="previous-round" type="button" aria-label="이전 라운드">‹</button>
+      <div class="round-picker"><select id="round-select" aria-label="표시할 라운드"></select><span id="round-progress" aria-live="polite">0 / 6 기록</span></div>
+      <button id="next-round" type="button" aria-label="다음 라운드">›</button>
+    </nav>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="스컬킹 점수표. 모바일에서는 위의 선택기로 라운드를 바꿀 수 있습니다.">
       <table id="score-table"></table>
     </div>
     <p id="entry-status" class="sr-only" role="status" aria-live="polite"></p>
@@ -146,8 +187,12 @@
     'use strict';
     const ROUND_COUNT = 10;
     const colors = ['#52866c', '#b48b51', '#6f91a0', '#a97c85', '#839b50', '#998ab0', '#bf8b6c', '#719995'];
-    const freshPlayer = () => ({ name: '', scores: Array(ROUND_COUNT).fill('') });
-    let players = Array.from({ length: 4 }, freshPlayer);
+    const DEFAULT_NAMES = ['위티', '루시', '이든', '엠버', '로건', '알피'];
+    const freshPlayer = index => ({ name: DEFAULT_NAMES[index] ?? '', scores: Array(ROUND_COUNT).fill('') });
+    let players = Array.from({ length: DEFAULT_NAMES.length }, (_, index) => freshPlayer(index));
+    const mobileMedia = matchMedia('(max-width: 680px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse)');
+    let mobileRound = 0;
+    const roundSelect = document.querySelector('#round-select');
     const table = document.querySelector('#score-table');
     const countSelect = document.querySelector('#player-count');
     const modal = document.querySelector('#confirm-modal');
@@ -173,7 +218,7 @@
       event.returnValue = true;
     }
     function syncGuard() {
-      const dirty = players.length !== 4 || players.some(p => p.name !== '' || p.scores.some(s => s !== ''));
+      const dirty = players.length !== DEFAULT_NAMES.length || players.some((p, index) => p.name !== (DEFAULT_NAMES[index] ?? '') || p.scores.some(s => s !== ''));
       if (dirty && !guarding) window.addEventListener('beforeunload', beforeUnload);
       if (!dirty && guarding) window.removeEventListener('beforeunload', beforeUnload);
       guarding = dirty;
@@ -200,6 +245,7 @@
       selectedCell = null;
       scoreControls.hidden = true;
       scroller.classList.remove('editing');
+      document.querySelector('main').classList.remove('has-selection');
       table.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
       table.querySelectorAll('[aria-pressed="true"]').forEach(button => button.setAttribute('aria-pressed', 'false'));
       if (restoreFocus && previous) scoreInputs[previous.round]?.[previous.player]?.focus({ preventScroll: true });
@@ -207,6 +253,12 @@
     function keepSelectionVisible() {
       if (!selectedCell) return;
       scroller.style.setProperty('--controls-space', `${scoreControls.offsetHeight + 24}px`);
+      document.querySelector('main').style.setProperty('--controls-space', `${scoreControls.offsetHeight + 16}px`);
+      if (mobileMedia.matches) {
+        scroller.scrollLeft = 0;
+        if (scroller.scrollHeight <= scroller.clientHeight + 1) scroller.scrollTop = 0;
+        return;
+      }
       const button = scoreInputs[selectedCell.round][selectedCell.player];
       const bounds = scroller.getBoundingClientRect();
       let cell = button.getBoundingClientRect();
@@ -233,6 +285,7 @@
       button.focus({ preventScroll: true });
       scoreControls.hidden = false;
       scroller.classList.add('editing');
+      document.querySelector('main').classList.add('has-selection');
       updateScoreControls();
       requestAnimationFrame(keepSelectionVisible);
     }
@@ -282,12 +335,13 @@
     function renderTable() {
       hideScoreControls();
       table.replaceChildren();
-      table.style.minHeight = `${56 + players.length * 70}px`;
+      table.style.minHeight = `${mobileMedia.matches ? 40 + players.length * 38 : 56 + players.length * 70}px`;
+      const visibleRounds = mobileMedia.matches ? [mobileRound] : Array.from({ length: ROUND_COUNT }, (_, round) => round);
       const caption = document.createElement('caption');
       caption.textContent = '참가자별 1~10라운드 점수와 합계. 점수 칸을 선택한 뒤 우측 하단의 +10, −10 버튼으로 점수를 조절하세요.';
       table.append(caption);
       const cols = document.createElement('colgroup');
-      cols.innerHTML = '<col class="name-col">' + '<col>'.repeat(ROUND_COUNT) + '<col class="total-col">';
+      cols.innerHTML = '<col class="name-col">' + '<col>'.repeat(visibleRounds.length) + '<col class="total-col">';
       table.append(cols);
       const headRow = table.createTHead().insertRow();
       const nameHeader = document.createElement('th');
@@ -295,13 +349,14 @@
       nameHeader.scope = 'col';
       nameHeader.textContent = '참가자';
       headRow.append(nameHeader);
-      roundHeaders.length = 0;
-      for (let round = 0; round < ROUND_COUNT; round++) {
+      roundHeaders.length = ROUND_COUNT;
+      roundHeaders.fill(null);
+      for (const round of visibleRounds) {
         const th = document.createElement('th');
         th.scope = 'col';
         th.innerHTML = `<span class="round-number">${round + 1}</span><span class="round-label">라운드</span>`;
         headRow.append(th);
-        roundHeaders.push(th);
+        roundHeaders[round] = th;
       }
       const totalHeader = document.createElement('th');
       totalHeader.scope = 'col';
@@ -332,13 +387,13 @@
         name.addEventListener('keydown', event => {
           if (event.key === 'Enter' && !event.isComposing) {
             event.preventDefault();
-            const next = table.querySelectorAll('.name-input')[index + 1] || scoreInputs[0][0];
+            const next = table.querySelectorAll('.name-input')[index + 1] || scoreInputs[visibleRounds[0]][0];
             next.focus();
           }
         });
         nameCell.append(name);
         tr.append(nameCell);
-        for (let round = 0; round < ROUND_COUNT; round++) {
+        for (const round of visibleRounds) {
           const td = tr.insertCell();
           td.dataset.scoreCell = '';
           const field = document.createElement('div');
@@ -387,15 +442,17 @@
         players.forEach((player, index) => {
           const input = scoreInputs[round][index];
           const value = parseScore(player.scores[round]);
-          const label = `${round + 1}라운드 ${playerName(index)} 점수`;
-          input.setAttribute('aria-label', `${label}, ${value === null ? '입력 전' : value + '점'}`);
-          input.textContent = player.scores[round] === '' ? '—' : player.scores[round];
-          input.classList.toggle('empty', value === null);
-          input.classList.toggle('positive', typeof value === 'number' && value > 0);
-          input.classList.toggle('negative', typeof value === 'number' && value < 0);
-          input.classList.toggle('compact', player.scores[round].length > 4);
-          input.setAttribute('aria-invalid', String(value === undefined));
-          input.title = '눌러서 10점 단위로 점수 조절';
+          if (input) {
+            const label = `${round + 1}라운드 ${playerName(index)} 점수`;
+            input.setAttribute('aria-label', `${label}, ${value === null ? '입력 전' : value + '점'}`);
+            input.textContent = player.scores[round] === '' ? '—' : player.scores[round];
+            input.classList.toggle('empty', value === null);
+            input.classList.toggle('positive', typeof value === 'number' && value > 0);
+            input.classList.toggle('negative', typeof value === 'number' && value < 0);
+            input.classList.toggle('compact', player.scores[round].length > 4);
+            input.setAttribute('aria-invalid', String(value === undefined));
+            input.title = '눌러서 10점 단위로 점수 조절';
+          }
           if (value === undefined) { invalid++; badPlayer[index] = true; }
           if (typeof value === 'number') { sums[index] += value; anyScore = true; filled++; }
         });
@@ -403,6 +460,7 @@
         else if (nextRound === -1) nextRound = round;
       }
       roundHeaders.forEach((header, round) => {
+        if (!header) return;
         const current = round === nextRound;
         header.classList.toggle('current-round', current);
         header.setAttribute('aria-label', `${round + 1}라운드${current ? ', 기록 중' : ''}`);
@@ -422,8 +480,38 @@
       document.querySelector('#entry-status').textContent = invalid ? `${invalid}칸을 확인해 주세요. 점수는 -999999~999999 사이의 정수예요.` : `${complete}라운드 기록 완료. 내용을 입력한 뒤 새로고침하거나 나가면 이탈 확인창이 표시됩니다.`;
       document.querySelector('#new-game').disabled = !players.some(player => player.scores.some(score => score !== ''));
       syncGuard();
+      updateRoundNavigation();
       updateScoreControls();
     }
+
+    function updateRoundNavigation() {
+      roundSelect.value = String(mobileRound);
+      document.querySelector('#previous-round').disabled = mobileRound === 0;
+      document.querySelector('#next-round').disabled = mobileRound === ROUND_COUNT - 1;
+      const filled = players.filter(player => typeof parseScore(player.scores[mobileRound]) === 'number').length;
+      document.querySelector('#round-progress').textContent = `${filled} / ${players.length} 기록`;
+    }
+    function changeRound(round) {
+      mobileRound = Math.max(0, Math.min(ROUND_COUNT - 1, round));
+      renderTable();
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+    for (let round = 0; round < ROUND_COUNT; round++) {
+      const option = document.createElement('option');
+      option.value = round;
+      option.textContent = `${round + 1}라운드`;
+      roundSelect.append(option);
+    }
+    roundSelect.addEventListener('change', () => changeRound(Number(roundSelect.value)));
+    document.querySelector('#previous-round').addEventListener('click', () => changeRound(mobileRound - 1));
+    document.querySelector('#next-round').addEventListener('click', () => changeRound(mobileRound + 1));
+    mobileMedia.addEventListener('change', () => {
+      if (selectedCell) mobileRound = selectedCell.round;
+      renderTable();
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    });
 
     countSelect.addEventListener('change', () => {
       const nextCount = Number(countSelect.value);
@@ -431,23 +519,24 @@
       countSelect.value = String(currentCount);
       const change = () => {
         if (nextCount < players.length) players = players.slice(0, nextCount);
-        while (players.length < nextCount) players.push(freshPlayer());
+        while (players.length < nextCount) players.push(freshPlayer(players.length));
         countSelect.value = String(players.length);
         renderTable();
       };
       const removed = players.slice(nextCount);
-      if (nextCount < currentCount && removed.some(p => p.name !== '' || p.scores.some(s => s !== ''))) {
+      if (nextCount < currentCount && removed.some((p, index) => p.name !== (DEFAULT_NAMES[nextCount + index] ?? '') || p.scores.some(s => s !== ''))) {
         ask('참가 인원을 줄일까요?', `${nextCount + 1}번부터 ${currentCount}번까지 참가자의 이름과 점수가 삭제돼요.\n나머지 참가자의 기록은 그대로 남아요.`, '인원 줄이기', change);
       } else change();
     });
     document.querySelector('#new-game').addEventListener('click', () => {
       ask('점수를 모두 비울까요?', '입력한 10라운드 점수를 지우고 새로 시작해요.\n참가 인원과 이름은 그대로 유지됩니다.', '점수 비우기', () => {
         players.forEach(player => { player.scores = Array(ROUND_COUNT).fill(''); });
+        mobileRound = 0;
         renderTable();
         scoreInputs[0][0].focus();
       });
     });
-    countSelect.value = '4';
+    countSelect.value = String(DEFAULT_NAMES.length);
     renderTable();
   })();
   </script>
