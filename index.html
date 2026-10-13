@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183e38">
+  <meta name="description" content="최대 8명이 함께 쓰는 스컬킹 점수판. 점수만 입력하면 합계와 순위가 바로 계산됩니다.">
+  <title>스컬킹 점수판</title>
+  <style>
+
+    :root { color-scheme: light; --ink: #233a35; --green: #1e6452; --paper: #fffef9; --line: #dfe4d8; --red: #b15146; --name-width: 164px; --total-width: 126px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f2eb; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; -webkit-font-smoothing: antialiased; }
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; }
+    button:disabled { cursor: default; opacity: .4; }
+    button:focus-visible, select:focus-visible, .table-scroll:focus-visible { outline: 3px solid #dbad58; outline-offset: -3px; }
+    main { height: 100vh; height: 100dvh; width: 100%; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; flex-shrink: 0; }
+    h1 { margin: 0; font-size: clamp(22px, 2.5vw, 31px); letter-spacing: -1.3px; font-weight: 750; white-space: nowrap; }
+    .controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .count-control { height: 36px; padding: 0 10px; border: 1px solid #d5dcd1; border-radius: 7px; display: flex; align-items: center; gap: 10px; background: var(--paper); }
+    .count-control label { font-size: 11px; color: #647466; }
+    select { color: var(--ink); border: 0; background: transparent; padding: 4px 2px; font-weight: 700; font-size: 13px; }
+    .quiet-button { height: 36px; border: 1px solid #d5dcd1; border-radius: 7px; background: transparent; color: #536653; padding: 0 12px; font-size: 11px; font-weight: 600; }
+    .quiet-button:hover:not(:disabled) { background: #e9ece1; }
+    .table-scroll { flex: 1; min-height: 0; width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); scrollbar-width: thin; scrollbar-color: #b5c4ab #eef1e8; overscroll-behavior-x: contain; }
+    table { width: 100%; height: 100%; min-width: 1110px; table-layout: fixed; border-spacing: 0; font-variant-numeric: tabular-nums; }
+    caption, .sr-only { position: absolute; clip-path: inset(50%); height: 1px; width: 1px; overflow: hidden; white-space: nowrap; }
+    col.name-col { width: var(--name-width); }
+    col.total-col { width: var(--total-width); }
+    th, td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
+    th:last-child, td:last-child { border-right: 0; }
+    tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+    thead th { position: sticky; top: 0; z-index: 3; background: #ecf0e5; height: 56px; padding: 8px 4px; color: #62755a; font-size: 12px; font-weight: 650; }
+    .round-number { display: block; font-size: 19px; font-weight: 650; line-height: 1.1; color: #53734b; }
+    .round-label { display: block; margin-top: 4px; font-size: 9px; color: #839279; font-weight: 450; }
+    .player-cell { position: sticky; left: 0; z-index: 2; background: #f8faf2; padding: 8px 12px; box-shadow: 1px 0 0 #d4ddca; }
+    thead .player-cell { z-index: 5; background: #e8eddf; }
+    .player-id { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 10px; color: #8b987f; font-weight: 450; margin-bottom: 6px; }
+    .player-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--player-color); }
+    .name-input { width: 100%; min-width: 0; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 7px 3px; text-align: center; color: var(--ink); font-weight: 650; font-size: clamp(16px, 1.6vw, 20px); }
+    .name-input::placeholder { color: #899581; font-weight: 450; }
+    .name-input:hover { background: #eff2e7; }
+    .name-input:focus { outline: 0; border-color: #92b49a; background: white; }
+    tbody td { padding: 3px 4px; }
+    td.current-round { background: #f2f6ed; }
+    thead th.current-round { background: #dce8d3; }
+    .score-field { position: relative; width: 100%; max-width: 160px; margin: auto; }
+    .score-input { width: 100%; height: 58px; border: 1px solid transparent; background: transparent; color: var(--ink); border-radius: 7px; text-align: center; font-size: clamp(19px, 2vw, 26px); font-weight: 550; font-variant-numeric: tabular-nums; padding: 5px 2px; }
+    .score-input.compact { font-size: 16px; }
+    .score-input.empty { color: #cbd2c0; font-weight: 400; }
+    .score-input:hover { background: #e5eadd66; }
+    .score-input:focus { outline: 0; border-color: #77a085; background: #fff; box-shadow: 0 0 0 2px #4b81530d; }
+    .score-input.positive { color: var(--green); }
+    .score-input.negative { color: var(--red); }
+    .score-input[aria-invalid="true"] { border-color: #d48a70; background: #fff4ed; }
+    td.selected-cell { background: #e6efdd; box-shadow: inset 0 0 0 2px #71936b; }
+    .score-input[aria-pressed="true"] { color: var(--green); background: #ffffffa6; border-color: #a9bfa0; }
+    .score-input.negative[aria-pressed="true"] { color: var(--red); }
+    .table-scroll.editing::after { content: ''; display: block; height: var(--controls-space, 220px); }
+    .score-controls { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 10; width: min(330px, calc(100vw - 24px)); padding: 9px 15px 11px; background: #fffef9; border: 1px solid #cfdbc8; border-radius: 20px; box-shadow: 0 10px 45px #173d3533, 0 2px 8px #173d3510; }
+    .score-controls[hidden] { display: none; }
+    .score-controls-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+    #selected-label { font-size: 13px; color: #5b7350; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    #close-controls { flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: #83927b; font-size: 24px; line-height: 1; }
+    #close-controls:hover { background: #eef2e7; }
+    .stepper { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; gap: 10px; margin: 5px 0 7px; }
+    .step-button { width: 64px; height: 64px; border: 1px solid #dbe2d3; border-radius: 50%; background: #eef2e7; color: #49673e; font-size: 22px; font-weight: 600; }
+    .step-button:active { transform: scale(.96); }
+    #plus-ten { background: #285f48; border-color: #285f48; color: white; }
+    #minus-ten { color: #9c5042; }
+    .selected-value { text-align: center; }
+    #selected-score { display: block; color: var(--ink); font-size: 32px; letter-spacing: -1px; line-height: 1.25; font-weight: 700; font-variant-numeric: tabular-nums; }
+    #selected-score.compact { font-size: 23px; }
+    #selected-score.negative { color: var(--red); }
+    #selected-score-caption { display: block; margin-top: 3px; color: #8d9984; font-size: 10px; }
+    .score-controls-actions { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #edf0e5; padding-top: 3px; }
+    .score-controls-actions button { min-height: 38px; padding: 3px 9px; border: 0; background: transparent; color: #728365; border-radius: 6px; font-size: 12px; }
+    .score-controls-actions button:hover { background: #eef2e7; }
+    .total-cell { position: sticky; right: 0; z-index: 2; background: #e7eddf; padding: 7px 6px; box-shadow: -1px 0 0 #cbd6c0; }
+    thead .total-cell { z-index: 5; color: #f2f5e9; background: #285544; font-size: 14px; }
+    .total { display: block; font-size: clamp(23px, 2.4vw, 34px); line-height: 1.15; color: #2b593f; font-weight: 750; letter-spacing: -.8px; }
+    .total.compact { font-size: 16px; letter-spacing: -.7px; }
+    .total.negative { color: var(--red); }
+    .rank { display: block; margin-top: 8px; font-size: 10px; color: #839176; }
+    .rank.first { color: #356443; font-weight: 700; }
+    dialog { width: min(410px, calc(100vw - 36px)); padding: 27px; border: 1px solid #e1e5d5; border-radius: 16px; color: var(--ink); background: var(--paper); box-shadow: 0 20px 90px #102e3450; }
+    dialog::backdrop { background: #16372f66; backdrop-filter: blur(3px); }
+    dialog h2 { font-size: 20px; margin: 0 0 11px; letter-spacing: -.6px; }
+    dialog p { margin: 0; color: #75816b; font-size: 13px; line-height: 1.85; white-space: pre-line; }
+    .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 25px; }
+    .dialog-actions button { height: 41px; padding: 0 18px; font-size: 13px; border: 0; border-radius: 7px; font-weight: 600; }
+    #cancel-dialog { background: #ecf0e5; color: #627456; }
+    #confirm-dialog { background: var(--green); color: #fff; }
+    @media (max-width: 680px) {
+      :root { --name-width: 112px; --total-width: 86px; }
+      main { padding: 8px; gap: 8px; }
+      .toolbar { min-height: 44px; gap: 7px; }
+      h1 { font-size: 21px; letter-spacing: -1.1px; }
+      .controls { gap: 5px; }
+      .count-control { height: 32px; padding: 0 6px; }
+      .count-control label { display: none; }
+      .quiet-button { height: 32px; font-size: 10px; padding: 0 8px; }
+      table { min-width: 1018px; }
+      .player-cell { padding: 7px 5px; }
+      .player-id { font-size: 9px; margin-bottom: 4px; }
+      .name-input { font-size: 16px; }
+      .score-input { font-size: 21px; }
+      .total { font-size: 25px; }
+      .total.compact { font-size: 13px; }
+      .rank { font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="toolbar">
+      <h1>스컬킹 점수판</h1>
+      <div class="controls">
+        <div class="count-control"><label for="player-count">인원</label><select id="player-count" aria-label="참가 인원" autocomplete="off"><option value="2">2명</option><option value="3">3명</option><option value="4" selected>4명</option><option value="5">5명</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div>
+        <button id="new-game" class="quiet-button" disabled>점수 비우기</button>
+      </div>
+    </header>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="스컬킹 점수표. 가로는 라운드, 세로는 참가자입니다. 좁은 화면에서는 좌우로 스크롤하세요.">
+      <table id="score-table"></table>
+    </div>
+    <p id="entry-status" class="sr-only" role="status" aria-live="polite"></p>
+  </main>
+  <section id="score-controls" class="score-controls" aria-label="선택한 칸 점수 조절" hidden>
+    <div class="score-controls-heading"><strong id="selected-label"></strong><button id="close-controls" type="button" aria-label="점수 조절 닫기">×</button></div>
+    <div class="stepper">
+      <button id="minus-ten" class="step-button" type="button" aria-label="10점 빼기">−10</button>
+      <div class="selected-value"><output id="selected-score" aria-live="polite">0</output><span id="selected-score-caption">아직 입력 전</span></div>
+      <button id="plus-ten" class="step-button" type="button" aria-label="10점 더하기">+10</button>
+    </div>
+    <div class="score-controls-actions"><button id="zero-score" type="button">0점 기록</button><button id="clear-score" type="button">칸 비우기</button></div>
+  </section>
+  <dialog id="confirm-modal" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <h2 id="dialog-title"></h2><p id="dialog-description"></p>
+    <div class="dialog-actions"><button id="cancel-dialog" autofocus>취소</button><button id="confirm-dialog">확인</button></div>
+  </dialog>
+  <script>
+  (() => {
+    'use strict';
+    const ROUND_COUNT = 10;
+    const colors = ['#52866c', '#b48b51', '#6f91a0', '#a97c85', '#839b50', '#998ab0', '#bf8b6c', '#719995'];
+    const freshPlayer = () => ({ name: '', scores: Array(ROUND_COUNT).fill('') });
+    let players = Array.from({ length: 4 }, freshPlayer);
+    const table = document.querySelector('#score-table');
+    const countSelect = document.querySelector('#player-count');
+    const modal = document.querySelector('#confirm-modal');
+    const scoreControls = document.querySelector('#score-controls');
+    const scroller = document.querySelector('.table-scroll');
+    let selectedCell = null;
+    const scoreInputs = [];
+    const totals = [];
+    const ranks = [];
+    const roundHeaders = [];
+    let pendingConfirmation = null;
+    let guarding = false;
+
+    // No persistence or network: all entered values live in this page's memory.
+    const playerName = index => players[index].name.trim() || `선원 ${index + 1}`;
+    function parseScore(raw) {
+      if (raw.trim() === '') return null;
+      if (!/^[+-]?\d{1,6}$/.test(raw.trim())) return undefined;
+      return Number(raw.trim());
+    }
+    function beforeUnload(event) {
+      event.preventDefault();
+      event.returnValue = true;
+    }
+    function syncGuard() {
+      const dirty = players.length !== 4 || players.some(p => p.name !== '' || p.scores.some(s => s !== ''));
+      if (dirty && !guarding) window.addEventListener('beforeunload', beforeUnload);
+      if (!dirty && guarding) window.removeEventListener('beforeunload', beforeUnload);
+      guarding = dirty;
+    }
+    function formatScore(value) { return value.toLocaleString('ko-KR'); }
+    function ask(title, description, confirmText, action) {
+      document.querySelector('#dialog-title').textContent = title;
+      document.querySelector('#dialog-description').textContent = description;
+      document.querySelector('#confirm-dialog').textContent = confirmText;
+      pendingConfirmation = action;
+      modal.showModal();
+    }
+    document.querySelector('#cancel-dialog').addEventListener('click', () => modal.close('cancel'));
+    document.querySelector('#confirm-dialog').addEventListener('click', () => {
+      const action = pendingConfirmation;
+      pendingConfirmation = null;
+      modal.close('confirm');
+      if (action) action();
+    });
+    modal.addEventListener('close', () => { pendingConfirmation = null; });
+
+    function hideScoreControls(restoreFocus = false) {
+      const previous = selectedCell;
+      selectedCell = null;
+      scoreControls.hidden = true;
+      scroller.classList.remove('editing');
+      table.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+      table.querySelectorAll('[aria-pressed="true"]').forEach(button => button.setAttribute('aria-pressed', 'false'));
+      if (restoreFocus && previous) scoreInputs[previous.round]?.[previous.player]?.focus({ preventScroll: true });
+    }
+    function keepSelectionVisible() {
+      if (!selectedCell) return;
+      scroller.style.setProperty('--controls-space', `${scoreControls.offsetHeight + 24}px`);
+      const button = scoreInputs[selectedCell.round][selectedCell.player];
+      const bounds = scroller.getBoundingClientRect();
+      let cell = button.getBoundingClientRect();
+      const left = bounds.left + table.querySelector('thead .player-cell').offsetWidth + 6;
+      const right = bounds.right - table.querySelector('thead .total-cell').offsetWidth - 6;
+      if (cell.left < left) scroller.scrollLeft -= left - cell.left;
+      else if (cell.right > right) scroller.scrollLeft += cell.right - right;
+      cell = button.getBoundingClientRect();
+      const panel = scoreControls.getBoundingClientRect();
+      const top = bounds.top + table.tHead.offsetHeight + 6;
+      const overlaps = cell.right > panel.left && cell.left < panel.right;
+      const bottom = Math.min(bounds.bottom - 8, overlaps ? panel.top - 10 : bounds.bottom - 8);
+      if (cell.bottom > bottom) scroller.scrollTop += cell.bottom - bottom;
+      else if (cell.top < top) scroller.scrollTop -= top - cell.top;
+    }
+    function selectScore(round, player) {
+      hideScoreControls();
+      selectedCell = { round, player };
+      const button = scoreInputs[round][player];
+      button.closest('td').classList.add('selected-cell');
+      button.setAttribute('aria-pressed', 'true');
+      // Real buttons, never editable inputs: tapping a score does not summon a phone keyboard.
+      if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+      button.focus({ preventScroll: true });
+      scoreControls.hidden = false;
+      scroller.classList.add('editing');
+      updateScoreControls();
+      requestAnimationFrame(keepSelectionVisible);
+    }
+    function updateScoreControls() {
+      if (!selectedCell) return;
+      const { round, player } = selectedCell;
+      const raw = players[player].scores[round];
+      const score = parseScore(raw) ?? 0;
+      document.querySelector('#selected-label').textContent = `${playerName(player)} · ${round + 1}라운드`;
+      const output = document.querySelector('#selected-score');
+      output.textContent = formatScore(score);
+      output.classList.toggle('negative', score < 0);
+      output.classList.toggle('compact', output.textContent.length > 6);
+      document.querySelector('#selected-score-caption').textContent = raw === '' ? '아직 입력 전' : '점';
+      document.querySelector('#plus-ten').disabled = score >= 999990;
+      document.querySelector('#minus-ten').disabled = score <= -999990;
+      document.querySelector('#clear-score').disabled = raw === '';
+    }
+    function setSelectedScore(value) {
+      if (!selectedCell) return;
+      const { round, player } = selectedCell;
+      players[player].scores[round] = value;
+      updateSummary();
+    }
+    function stepScore(delta) {
+      if (!selectedCell) return;
+      const { round, player } = selectedCell;
+      const current = parseScore(players[player].scores[round]) ?? 0;
+      setSelectedScore(String(Math.max(-999990, Math.min(999990, current + delta))));
+    }
+    document.querySelector('#plus-ten').addEventListener('click', () => stepScore(10));
+    document.querySelector('#minus-ten').addEventListener('click', () => stepScore(-10));
+    document.querySelector('#zero-score').addEventListener('click', () => setSelectedScore('0'));
+    document.querySelector('#clear-score').addEventListener('click', () => setSelectedScore(''));
+    document.querySelector('#close-controls').addEventListener('click', () => hideScoreControls(true));
+    document.addEventListener('pointerdown', event => {
+      if (selectedCell && !event.target.closest('[data-score-cell], #score-controls')) hideScoreControls();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && selectedCell && !modal.open) {
+        event.preventDefault();
+        hideScoreControls(true);
+      }
+    });
+    window.addEventListener('resize', () => requestAnimationFrame(keepSelectionVisible));
+
+    function renderTable() {
+      hideScoreControls();
+      table.replaceChildren();
+      table.style.minHeight = `${56 + players.length * 70}px`;
+      const caption = document.createElement('caption');
+      caption.textContent = '참가자별 1~10라운드 점수와 합계. 점수 칸을 선택한 뒤 우측 하단의 +10, −10 버튼으로 점수를 조절하세요.';
+      table.append(caption);
+      const cols = document.createElement('colgroup');
+      cols.innerHTML = '<col class="name-col">' + '<col>'.repeat(ROUND_COUNT) + '<col class="total-col">';
+      table.append(cols);
+      const headRow = table.createTHead().insertRow();
+      const nameHeader = document.createElement('th');
+      nameHeader.className = 'player-cell';
+      nameHeader.scope = 'col';
+      nameHeader.textContent = '참가자';
+      headRow.append(nameHeader);
+      roundHeaders.length = 0;
+      for (let round = 0; round < ROUND_COUNT; round++) {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.innerHTML = `<span class="round-number">${round + 1}</span><span class="round-label">라운드</span>`;
+        headRow.append(th);
+        roundHeaders.push(th);
+      }
+      const totalHeader = document.createElement('th');
+      totalHeader.scope = 'col';
+      totalHeader.className = 'total-cell';
+      totalHeader.textContent = '합계';
+      headRow.append(totalHeader);
+      scoreInputs.length = 0;
+      for (let round = 0; round < ROUND_COUNT; round++) scoreInputs.push([]);
+      totals.length = 0;
+      ranks.length = 0;
+      const body = table.createTBody();
+      players.forEach((player, index) => {
+        const tr = body.insertRow();
+        const nameCell = document.createElement('th');
+        nameCell.className = 'player-cell';
+        nameCell.scope = 'row';
+        nameCell.innerHTML = `<span class="player-id"><span class="player-dot" style="--player-color:${colors[index]}"></span>${String(index + 1).padStart(2, '0')}</span>`;
+        const name = document.createElement('input');
+        name.className = 'name-input';
+        name.type = 'text';
+        name.maxLength = 16;
+        name.autocomplete = 'off';
+        name.spellcheck = false;
+        name.placeholder = `선원 ${index + 1}`;
+        name.setAttribute('aria-label', `${index + 1}번 참가자 이름`);
+        name.value = player.name;
+        name.addEventListener('input', () => { player.name = name.value; updateSummary(); });
+        name.addEventListener('keydown', event => {
+          if (event.key === 'Enter' && !event.isComposing) {
+            event.preventDefault();
+            const next = table.querySelectorAll('.name-input')[index + 1] || scoreInputs[0][0];
+            next.focus();
+          }
+        });
+        nameCell.append(name);
+        tr.append(nameCell);
+        for (let round = 0; round < ROUND_COUNT; round++) {
+          const td = tr.insertCell();
+          td.dataset.scoreCell = '';
+          const field = document.createElement('div');
+          field.className = 'score-field';
+          const input = document.createElement('button');
+          input.className = 'score-input';
+          input.type = 'button';
+          input.dataset.round = round;
+          input.dataset.player = index;
+          input.setAttribute('aria-pressed', 'false');
+          input.setAttribute('aria-controls', 'score-controls');
+          input.title = '눌러서 10점 단위로 점수 조절';
+          td.addEventListener('click', () => selectScore(round, index));
+          input.addEventListener('keydown', event => {
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            event.preventDefault();
+            const next = index + (event.key === 'ArrowDown' ? 1 : -1);
+            if (next >= 0 && next < players.length) selectScore(round, next);
+          });
+          field.append(input);
+          td.append(field);
+          scoreInputs[round].push(input);
+        }
+        const totalCell = tr.insertCell();
+        totalCell.className = 'total-cell';
+        const total = document.createElement('strong');
+        total.className = 'total';
+        const rank = document.createElement('span');
+        rank.className = 'rank';
+        totalCell.append(total, rank);
+        totals.push(total);
+        ranks.push(rank);
+      });
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const sums = players.map(() => 0);
+      const badPlayer = players.map(() => false);
+      let anyScore = false;
+      let complete = 0;
+      let nextRound = -1;
+      let invalid = 0;
+      for (let round = 0; round < ROUND_COUNT; round++) {
+        let filled = 0;
+        players.forEach((player, index) => {
+          const input = scoreInputs[round][index];
+          const value = parseScore(player.scores[round]);
+          const label = `${round + 1}라운드 ${playerName(index)} 점수`;
+          input.setAttribute('aria-label', `${label}, ${value === null ? '입력 전' : value + '점'}`);
+          input.textContent = player.scores[round] === '' ? '—' : player.scores[round];
+          input.classList.toggle('empty', value === null);
+          input.classList.toggle('positive', typeof value === 'number' && value > 0);
+          input.classList.toggle('negative', typeof value === 'number' && value < 0);
+          input.classList.toggle('compact', player.scores[round].length > 4);
+          input.setAttribute('aria-invalid', String(value === undefined));
+          input.title = '눌러서 10점 단위로 점수 조절';
+          if (value === undefined) { invalid++; badPlayer[index] = true; }
+          if (typeof value === 'number') { sums[index] += value; anyScore = true; filled++; }
+        });
+        if (filled === players.length) complete++;
+        else if (nextRound === -1) nextRound = round;
+      }
+      roundHeaders.forEach((header, round) => {
+        const current = round === nextRound;
+        header.classList.toggle('current-round', current);
+        header.setAttribute('aria-label', `${round + 1}라운드${current ? ', 기록 중' : ''}`);
+        scoreInputs[round].forEach(input => input.closest('td').classList.toggle('current-round', current));
+      });
+      players.forEach((player, index) => {
+        const rank = 1 + sums.filter(sum => sum > sums[index]).length;
+        const tied = sums.filter(sum => sum === sums[index]).length > 1;
+        const total = badPlayer[index] ? '—' : formatScore(sums[index]);
+        totals[index].textContent = total;
+        totals[index].classList.toggle('negative', !badPlayer[index] && sums[index] < 0);
+        totals[index].classList.toggle('compact', total.length > 6);
+        totals[index].parentElement.setAttribute('aria-label', `${playerName(index)} 합계 ${badPlayer[index] ? '점수 확인 필요' : total + '점'}`);
+        ranks[index].textContent = invalid ? '입력 확인 필요' : anyScore ? `${tied ? '공동 ' : ''}${rank}위` : '';
+        ranks[index].classList.toggle('first', !invalid && anyScore && rank === 1);
+      });
+      document.querySelector('#entry-status').textContent = invalid ? `${invalid}칸을 확인해 주세요. 점수는 -999999~999999 사이의 정수예요.` : `${complete}라운드 기록 완료. 내용을 입력한 뒤 새로고침하거나 나가면 이탈 확인창이 표시됩니다.`;
+      document.querySelector('#new-game').disabled = !players.some(player => player.scores.some(score => score !== ''));
+      syncGuard();
+      updateScoreControls();
+    }
+
+    countSelect.addEventListener('change', () => {
+      const nextCount = Number(countSelect.value);
+      const currentCount = players.length;
+      countSelect.value = String(currentCount);
+      const change = () => {
+        if (nextCount < players.length) players = players.slice(0, nextCount);
+        while (players.length < nextCount) players.push(freshPlayer());
+        countSelect.value = String(players.length);
+        renderTable();
+      };
+      const removed = players.slice(nextCount);
+      if (nextCount < currentCount && removed.some(p => p.name !== '' || p.scores.some(s => s !== ''))) {
+        ask('참가 인원을 줄일까요?', `${nextCount + 1}번부터 ${currentCount}번까지 참가자의 이름과 점수가 삭제돼요.\n나머지 참가자의 기록은 그대로 남아요.`, '인원 줄이기', change);
+      } else change();
+    });
+    document.querySelector('#new-game').addEventListener('click', () => {
+      ask('점수를 모두 비울까요?', '입력한 10라운드 점수를 지우고 새로 시작해요.\n참가 인원과 이름은 그대로 유지됩니다.', '점수 비우기', () => {
+        players.forEach(player => { player.scores = Array(ROUND_COUNT).fill(''); });
+        renderTable();
+        scoreInputs[0][0].focus();
+      });
+    });
+    countSelect.value = '4';
+    renderTable();
+  })();
+  </script>
+</body>
+</html>
