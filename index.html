@@ -28,7 +28,7 @@
     .round-nav { display: none; }
     .table-scroll { flex: 1; min-height: 0; width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); scrollbar-width: thin; scrollbar-color: #b5c4ab #eef1e8; overscroll-behavior-x: contain; }
     table { width: 100%; height: 100%; min-width: 1110px; table-layout: fixed; border-spacing: 0; font-variant-numeric: tabular-nums; }
-    caption, .sr-only { position: absolute; clip-path: inset(50%); height: 1px; width: 1px; overflow: hidden; white-space: nowrap; }
+    .sr-only { position: absolute; clip-path: inset(50%); height: 1px; width: 1px; overflow: hidden; white-space: nowrap; }
     col.name-col { width: var(--name-width); }
     col.total-col { width: var(--total-width); }
     th, td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
@@ -165,8 +165,10 @@
       <button id="next-round" type="button" aria-label="다음 라운드">›</button>
     </nav>
     <div class="table-scroll" tabindex="0" role="region" aria-label="스컬킹 점수표. 모바일에서는 위의 선택기로 라운드를 바꿀 수 있습니다.">
-      <table id="score-table"></table>
+      <table id="score-table" aria-label="스컬킹 점수표" aria-describedby="score-table-description"></table>
     </div>
+    <!-- Keep the hidden description outside the table: an absolute caption leaves a blank row in WebKit. -->
+    <p id="score-table-description" class="sr-only">참가자별 1~10라운드 점수와 합계. 점수 칸을 선택한 뒤 우측 하단의 +10, −10 버튼으로 점수를 조절하세요.</p>
     <p id="entry-status" class="sr-only" role="status" aria-live="polite"></p>
   </main>
   <section id="score-controls" class="score-controls" aria-label="선택한 칸 점수 조절" hidden>
@@ -337,9 +339,6 @@
       table.replaceChildren();
       table.style.minHeight = `${mobileMedia.matches ? 40 + players.length * 38 : 56 + players.length * 70}px`;
       const visibleRounds = mobileMedia.matches ? [mobileRound] : Array.from({ length: ROUND_COUNT }, (_, round) => round);
-      const caption = document.createElement('caption');
-      caption.textContent = '참가자별 1~10라운드 점수와 합계. 점수 칸을 선택한 뒤 우측 하단의 +10, −10 버튼으로 점수를 조절하세요.';
-      table.append(caption);
       const cols = document.createElement('colgroup');
       cols.innerHTML = '<col class="name-col">' + '<col>'.repeat(visibleRounds.length) + '<col class="total-col">';
       table.append(cols);
